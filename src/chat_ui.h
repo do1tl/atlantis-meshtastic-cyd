@@ -1,9 +1,9 @@
 #pragma once
 #include <Arduino.h>
 #include <TFT_eSPI.h>
-#include <XPT2046_Touchscreen.h>
 #include "config.h"
 #include "proto_parser.h"
+#include "touch.h"
 
 struct ChatMessage {
   char    text[MAX_MSG_LEN + 1];
@@ -13,7 +13,7 @@ struct ChatMessage {
 
 class ChatUI {
 public:
-  void begin(TFT_eSPI& tft, XPT2046_Touchscreen& ts);
+  void begin(TFT_eSPI& tft);
   void loop();
 
   void addMessage(const MeshMessage& msg, uint32_t myNodeId);
@@ -26,7 +26,6 @@ public:
 
 private:
   TFT_eSPI*            _tft = nullptr;
-  XPT2046_Touchscreen* _ts  = nullptr;
 
   // Chat messages
   ChatMessage _msgs[MAX_MESSAGES];

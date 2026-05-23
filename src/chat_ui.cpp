@@ -27,21 +27,6 @@ static const char* ROW2_NM[] = {"ABC","#","%","^","*","+","=","?","<",  nullptr}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-int16_t ChatUI::_mapTouchX(uint16_t raw) {
-  int32_t v = (int32_t)raw - TOUCH_X_MIN;
-  v = v * SCREEN_W / (TOUCH_X_MAX - TOUCH_X_MIN);
-  if (v < 0) v = 0;
-  if (v >= SCREEN_W) v = SCREEN_W - 1;
-  return (int16_t)v;
-}
-
-int16_t ChatUI::_mapTouchY(uint16_t raw) {
-  int32_t v = (int32_t)raw - TOUCH_Y_MIN;
-  v = v * SCREEN_H / (TOUCH_Y_MAX - TOUCH_Y_MIN);
-  if (v < 0) v = 0;
-  if (v >= SCREEN_H) v = SCREEN_H - 1;
-  return (int16_t)v;
-}
 
 bool ChatUI::_hitTest(int tx, int ty, int x, int y, int w, int h) {
   return tx >= x && tx < x + w && ty >= y && ty < y + h;
@@ -49,10 +34,11 @@ bool ChatUI::_hitTest(int tx, int ty, int x, int y, int w, int h) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-void ChatUI::begin(TFT_eSPI& tft, XPT2046_Touchscreen& ts) {
-  _tft = &tft;
-  _ts  = &ts;
+Touch touch;
 
+void ChatUI::begin(TFT_eSPI& tft) {
+  _tft = &tft;
+  touch.begin();
   _tft->fillScreen(C_BG);
   _dirtyStatus = _dirtyMsgs = _dirtyInput = _dirtyKbd = true;
 }
@@ -308,14 +294,12 @@ void ChatUI::loop() {
   if (_dirtyInput || (millis() / 500) & 1) { _drawInput(); } // cursor blink
   if (_dirtyKbd)     _drawKeyboard();
 
-  // Touch
-  if (_ts->tirqTouched() && _ts->touched()) {
-    uint32_t now = millis();
-    if (now - _lastTouch > 150) {
+  // Touch via bit-bang
+  uint32_t now = millis();
+  if (now - _lastTouch > 150) {
+    int16_t tx, ty;
+    if (touch.read(tx, ty)) {
       _lastTouch = now;
-      TS_Point p = _ts->getPoint();
-      int tx = _mapTouchX(p.x);
-      int ty = _mapTouchY(p.y);
       if (ty >= KBD_Y) _handleTouch(tx, ty);
     }
   }

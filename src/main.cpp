@@ -1,14 +1,10 @@
 #include <Arduino.h>
-#include <SPI.h>
 #include <TFT_eSPI.h>
-#include <XPT2046_Touchscreen.h>
 #include "config.h"
 #include "ble_mesh.h"
 #include "chat_ui.h"
 
-TFT_eSPI            tft;
-SPIClass            touchSPI(HSPI);
-XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+TFT_eSPI tft;
 
 static void onMeshMessage(const MeshMessage& msg) {
   chatUI.addMessage(msg, bleMesh.myNodeId());
@@ -18,26 +14,17 @@ void setup() {
   Serial.begin(115200);
   Serial.println("[AtlantisOS-Meshtastic-CYD] Boot");
 
-  // 1. Display first – backlight controlled by TFT_BACKLIGHT_ON build flag
   pinMode(TFT_BL_PIN, OUTPUT);
   digitalWrite(TFT_BL_PIN, HIGH);
   tft.init();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
-  delay(100); // let display settle before SPI bus changes
+  delay(50);
 
-  // 2. Touch on HSPI (separate bus from display VSPI)
-  touchSPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
-  ts.begin(touchSPI);
-  ts.setRotation(1);
-
-  // 3. UI
-  chatUI.begin(tft, ts);
+  chatUI.begin(tft);
   chatUI.setStatus("Searching for Meshtastic...", false);
 
-  // 4. BLE last – NimBLE creates its own FreeRTOS task
   bleMesh.begin(onMeshMessage);
-
   Serial.println("[main] Setup complete");
 }
 
