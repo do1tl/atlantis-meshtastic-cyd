@@ -1,43 +1,41 @@
 #include <Arduino.h>
+#include <SPI.h>
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include "config.h"
 #include "ble_mesh.h"
 #include "chat_ui.h"
 
-TFT_eSPI          tft;
+TFT_eSPI            tft;
+SPIClass            touchSPI(HSPI);
 XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
 
-// ── BLE message callback (called from BLE task) ───────────────────────────────
 static void onMeshMessage(const MeshMessage& msg) {
   chatUI.addMessage(msg, bleMesh.myNodeId());
 }
 
-// ── Arduino setup / loop ──────────────────────────────────────────────────────
-
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n[AtlantisOS-Meshtastic-CYD] Boot");
+  Serial.println("[AtlantisOS-Meshtastic-CYD] Boot");
 
-  // Backlight
+  // 1. Display first – backlight controlled by TFT_BACKLIGHT_ON build flag
   pinMode(TFT_BL_PIN, OUTPUT);
   digitalWrite(TFT_BL_PIN, HIGH);
-
-  // Display
   tft.init();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
+  delay(100); // let display settle before SPI bus changes
 
-  // Touch (uses dedicated SPI bus via XPT2046_Touchscreen)
-  SPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
-  ts.begin();
+  // 2. Touch on HSPI (separate bus from display VSPI)
+  touchSPI.begin(TOUCH_CLK, TOUCH_MISO, TOUCH_MOSI, TOUCH_CS);
+  ts.begin(touchSPI);
   ts.setRotation(1);
 
-  // UI
+  // 3. UI
   chatUI.begin(tft, ts);
   chatUI.setStatus("Searching for Meshtastic...", false);
 
-  // BLE
+  // 4. BLE last – NimBLE creates its own FreeRTOS task
   bleMesh.begin(onMeshMessage);
 
   Serial.println("[main] Setup complete");
@@ -46,7 +44,6 @@ void setup() {
 void loop() {
   bleMesh.loop();
 
-  // Update status bar
   if (bleMesh.isConnected()) {
     char buf[40];
     snprintf(buf, sizeof(buf), "Connected  !%08x", (unsigned)bleMesh.myNodeId());
@@ -57,12 +54,10 @@ void loop() {
     chatUI.setStatus("Connecting...", false);
   }
 
-  // Check for outgoing message
   char sendBuf[MAX_INPUT_LEN + 1];
   if (chatUI.getSendText(sendBuf, sizeof(sendBuf))) {
     bool ok = bleMesh.sendText(sendBuf);
     if (ok) {
-      // Add our own message to chat
       MeshMessage m = {};
       m.from_node = bleMesh.myNodeId();
       m.to_node   = 0xFFFFFFFF;
@@ -76,6 +71,5 @@ void loop() {
   }
 
   chatUI.loop();
-
   delay(10);
 }

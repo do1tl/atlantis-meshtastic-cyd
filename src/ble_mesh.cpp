@@ -63,6 +63,7 @@ void BleMesh::_notifyCB(NimBLERemoteCharacteristic* c,
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 void BleMesh::_startScan() {
+  if (_scanning) return;
   Serial.println("[BLE] Starting scan...");
   _scanning = true;
   NimBLEScan* scan = NimBLEDevice::getScan();
@@ -70,7 +71,8 @@ void BleMesh::_startScan() {
   scan->setActiveScan(true);
   scan->setInterval(100);
   scan->setWindow(90);
-  scan->start(0, false); // continuous scan
+  // Use 30-second bursts (duration=0 blocks in NimBLE 1.4.x)
+  scan->start(30, false);
 }
 
 void BleMesh::_connect() {
@@ -154,8 +156,8 @@ void BleMesh::begin(MsgCallback cb) {
   NimBLEDevice::init("AtlantisOS-CYD");
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
-
-  _startScan();
+  // Scan is started from loop() on first call, not here
+  Serial.println("[BLE] Initialized");
 }
 
 void BleMesh::loop() {
@@ -168,9 +170,13 @@ void BleMesh::loop() {
     _readPending();
   }
 
-  // Auto-reconnect: if not connected and not scanning
-  if (!_connected && !_scanning && !_doConnect) {
-    _startScan();
+  // Start or restart scan when idle
+  if (!_connected && !_doConnect) {
+    NimBLEScan* scan = NimBLEDevice::getScan();
+    if (!scan->isScanning()) {
+      _scanning = false;
+      _startScan();
+    }
   }
 }
 
