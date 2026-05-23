@@ -2,9 +2,6 @@
 #include <Arduino.h>
 #include "config.h"
 
-// Bit-bang XPT2046 touch controller
-// Uses dedicated pins independent of display SPI bus
-
 class Touch {
 public:
   void begin() {
@@ -14,21 +11,17 @@ public:
     pinMode(TOUCH_MISO, INPUT);
   }
 
-  // Returns true when touched, fills screen-space x/y
   bool read(int16_t &sx, int16_t &sy) {
-    uint16_t z1 = _cmd(0xB0); // Z1 pressure
-    if (z1 < 60) return false; // not touched
+    uint16_t z1 = _cmd(0xB0);
+    if (z1 < 60) return false;
 
-    // Average 4 readings for stability
     uint32_t rx = 0, ry = 0;
     for (int i = 0; i < 4; i++) {
-      rx += _cmd(0xD0); // X
-      ry += _cmd(0x90); // Y
+      rx += _cmd(0xD0);
+      ry += _cmd(0x90);
     }
     rx >>= 2; ry >>= 2;
-
-    // Filter junk readings (Y=2047 = invalid)
-    if (ry > 4000) return false;
+    if (ry < 100) return false; // junk
 
     sx = (int16_t)map((int32_t)rx, TOUCH_X_MIN, TOUCH_X_MAX, 0, SCREEN_W - 1);
     sy = (int16_t)map((int32_t)ry, TOUCH_Y_MIN, TOUCH_Y_MAX, 0, SCREEN_H - 1);
@@ -38,11 +31,12 @@ public:
   }
 
 private:
+  // XPT2046: 8 cmd bits, 1 null/busy bit, 12 data bits
+  // Reading 13 bits total then >> 1 discards the null bit correctly
   uint16_t _cmd(uint8_t cmd) {
     uint16_t result = 0;
     digitalWrite(TOUCH_CS, LOW);
     delayMicroseconds(1);
-    // 8 command bits
     for (int i = 7; i >= 0; i--) {
       digitalWrite(TOUCH_CLK, LOW);
       digitalWrite(TOUCH_MOSI, (cmd >> i) & 1);
@@ -50,18 +44,15 @@ private:
       digitalWrite(TOUCH_CLK, HIGH);
       delayMicroseconds(1);
     }
-    // Skip busy bit
-    digitalWrite(TOUCH_CLK, LOW); delayMicroseconds(2);
-    digitalWrite(TOUCH_CLK, HIGH); delayMicroseconds(1);
-    // 12 data bits
-    for (int i = 11; i >= 0; i--) {
+    // Read 13 bits (null + 12 data), then shift out the null bit
+    for (int i = 12; i >= 0; i--) {
       digitalWrite(TOUCH_CLK, LOW); delayMicroseconds(1);
       result |= ((uint16_t)digitalRead(TOUCH_MISO) << i);
       digitalWrite(TOUCH_CLK, HIGH); delayMicroseconds(1);
     }
     digitalWrite(TOUCH_CLK, LOW);
     digitalWrite(TOUCH_CS, HIGH);
-    return result;
+    return result >> 1; // discard null bit, gives proper 12-bit (0-4095)
   }
 };
 

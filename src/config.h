@@ -3,14 +3,14 @@
 // ── Meshtastic Gerät ──────────────────────────────────────────────────────────
 // Name des Heltec V3 wie er im BLE Scan erscheint (Meshtastic_XXXX)
 // Leer lassen = verbindet mit erstem gefundenem Meshtastic Gerät
-#define MESH_DEVICE_NAME    ""
+#define MESH_DEVICE_NAME    "EN98_7fb8"
 
 // BLE PIN falls gesetzt (6 Stellen, 0 = kein PIN)
 #define MESH_BLE_PIN        0
 
 // ── Meshtastic BLE UUIDs ──────────────────────────────────────────────────────
 // Mit nRF Connect App verifizieren falls Verbindung fehlschlägt
-#define MESHTASTIC_SERVICE_UUID  "6ba4xxxx-1c70-4a47-9b3c-9f8e3b0a6987"
+#define MESHTASTIC_SERVICE_UUID  "6ba1b218-15a8-461f-9fa8-5dcae273eafd"
 #define TORADIO_UUID             "f75c76d2-129e-4dad-a1dd-7866124401e7"
 #define FROMRADIO_UUID           "2c55e69e-4993-11ed-b878-0242ac120002"
 #define FROMNUM_UUID             "ed9da18c-a800-4f66-a670-aa7547e34453"
